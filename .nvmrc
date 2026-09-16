@@ -1,0 +1,1 @@
+node -v | cut -c2- > .nvmrc   # writes e.g. "22.12.0"
