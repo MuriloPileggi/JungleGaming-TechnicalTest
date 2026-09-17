@@ -37,17 +37,17 @@ parâmetros de URL (ver abaixo).
 
 ---
 
-## Comandos 
+## Comandos
 
-| Comando | Descrição |
-|---|---|
-| `npm run dev` | Servidor de desenvolvimento (Vite) |
-| `npm run build` | Build de produção em `dist/` |
-| `npm run preview` | Serve o build de produção localmente |
-| `npm run lint` | ESLint |
-| `npx tsc -b` | Verificação de tipos (TypeScript, sem emissão) |
-| `npm run test:e2e` | Suíte Playwright (60 testes: desktop + mobile, Chromium) |
-| `npm run test:e2e:report` | Abre o relatório HTML dos testes (`playwright-report/`) |
+| Comando                   | Descrição                                                |
+| ------------------------- | -------------------------------------------------------- |
+| `npm run dev`             | Servidor de desenvolvimento (Vite)                       |
+| `npm run build`           | Build de produção em `dist/`                             |
+| `npm run preview`         | Serve o build de produção localmente                     |
+| `npm run lint`            | ESLint                                                   |
+| `npx tsc -b`              | Verificação de tipos (TypeScript, sem emissão)           |
+| `npm run test:e2e`        | Suíte Playwright (60 testes: desktop + mobile, Chromium) |
+| `npm run test:e2e:report` | Abre o relatório HTML dos testes (`playwright-report/`)  |
 
 ---
 
@@ -55,14 +55,14 @@ parâmetros de URL (ver abaixo).
 
 ### Teclado (desktop)
 
-| Tecla | Ação |
-|---|---|
-| W | Acelera (vela) na direção atual |
-| A / D | Gira o navio (leme) |
-| Espaço | Disparo frontal (com cooldown) |
-| Q / E | Salva lateral (broadside) esquerda / direita |
-| P | Pausa / retoma |
-| Enter, Espaço, Esc ou clique | Retoma quando pausado |
+| Tecla                        | Ação                                         |
+| ---------------------------- | -------------------------------------------- |
+| W                            | Acelera (vela) na direção atual              |
+| A / D                        | Gira o navio (leme)                          |
+| Espaço                       | Disparo frontal (com cooldown)               |
+| Q / E                        | Salva lateral (broadside) esquerda / direita |
+| P                            | Pausa / retoma                               |
+| Enter, Espaço, Esc ou clique | Retoma quando pausado                        |
 
 ### Toque (mobile)
 
@@ -85,9 +85,10 @@ Tela Options (persistida em localStorage):
 - Enemy spawn interval: intervalo de spawn de inimigos (padrão 8s)
 
 Valores inválidos ou adulterados no localStorage caem para os padrões configurados
-(validação por whitelist em src/persistence/storage.ts). O balanceamento
-(velocidades, dano, cooldowns, pontos por inimigo) vive centralizado em
-src/config/gameConfig.ts — ver ARCHITECTURE.md.
+(validação por whitelist em src/persistence/storage.ts).
+
+O balanceamento (velocidades, dano, cooldowns, pontos por inimigo) vive centralizado em
+src/config/gameConfig.ts
 
 ---
 
@@ -98,30 +99,30 @@ Para testes E2E, há instrumentação opcional, ativada apenas com ?test=1:
 
 ### Parâmetros de URL (modo de teste)
 
-| Parâmetro | Efeito |
-|---|---|
-| `?test=1` | Ativa instrumentação (`window.__PIRATE_TEST__`, `window.__API_FAULTS__`) |
-| `seed=<n>` | RNG determinística (seed fixa ⇒ spawns e comportamento reproduzíveis) |
-| `duration=<s>` | Duração da partida em segundos |
-| `spawn=<s>` | Intervalo de spawn em segundos |
-| `failAssets=1` | Injeta falha de carregamento de assets (com `test=1`) |
-| `touch=1` | Força os controles de toque |
+| Parâmetro      | Efeito                                                                   |
+| -------------- | ------------------------------------------------------------------------ |
+| `?test=1`      | Ativa instrumentação (`window.__PIRATE_TEST__`, `window.__API_FAULTS__`) |
+| `seed=<n>`     | RNG determinística (seed fixa ⇒ spawns e comportamento reproduzíveis)    |
+| `duration=<s>` | Duração da partida em segundos                                           |
+| `spawn=<s>`    | Intervalo de spawn em segundos                                           |
+| `failAssets=1` | Injeta falha de carregamento de assets (com `test=1`)                    |
+| `touch=1`      | Força os controles de toque                                              |
 
 ---
 
 ## Falhas de rede (console do navegador, com ?test=1)
 
-__API_FAULTS__.failPost(1)     // POST /api/history responde 500 (n vezes)
+**API_FAULTS**.failPost(1) // POST /api/history responde 500 (n vezes)
 
-__API_FAULTS__.dropPost(1)     // POST falha como conexão caída (n vezes)
+**API_FAULTS**.dropPost(1) // POST falha como conexão caída (n vezes)
 
-__API_FAULTS__.delayPost(3000) // POST responde após 3s
+**API_FAULTS**.delayPost(3000) // POST responde após 3s
 
-__API_FAULTS__.failGet(2)      // GETs de ranking/histórico respondem 500
+**API_FAULTS**.failGet(2) // GETs de ranking/histórico respondem 500
 
-__API_FAULTS__.delayGet(1500)  // GETs atrasam 1,5s
+**API_FAULTS**.delayGet(1500) // GETs atrasam 1,5s
 
-__API_FAULTS__.reset()         // RESET: remove todos os cenários ativos
+**API_FAULTS**.reset() // RESET: remove todos os cenários ativos
 
 ---
 
@@ -137,22 +138,22 @@ Remove opções, último resultado, fila de envios pendentes e o "banco" do MSW
 ## Reproduzindo falhas (manual)
 
 1. Asset falha + retry: abra /game?test=1&seed=42&failAssets=1 → tela de erro
-("Failed to load game assets") → clique Retry → o jogo carrega normalmente.
+   ("Failed to load game assets") → clique Retry → o jogo carrega normalmente.
 
 2. Envio pendente recuperado após refresh: em /game?test=1, rode
-__API_FAULTS__.dropPost(1), termine a partida (morra) → o resultado fica em
-localStorage['pirate-battle:pending']. Recarregue a página sem falhas → o
-envio é reprocessado no boot e aparece em /history (sem duplicar).
+   **API_FAULTS**.dropPost(1), termine a partida (morra) → o resultado fica em
+   localStorage['pirate-battle:pending']. Recarregue a página sem falhas → o
+   envio é reprocessado no boot e aparece em /history (sem duplicar).
 
 3. Timeout sem duplicação: repita com failPost(3) e recarregue várias vezes —
-o clientId do resultado garante deduplicação no servidor mock.
+   o clientId do resultado garante deduplicação no servidor mock.
 
 4. Erro/empty/loading nas abas: em /history?test=1, use failGet(2) e clique
-na aba "Match History" → estado de erro com botão Retry; delayGet(1500) + troca
-de aba → estado de carregamento. Profile novo (localStorage vazio) → estado vazio.
+   na aba "Match History" → estado de erro com botão Retry; delayGet(1500) + troca
+   de aba → estado de carregamento. Profile novo (localStorage vazio) → estado vazio.
 
 5. Pausa por perda de foco: durante uma partida, alterne para outra janela →
-overlay PAUSED; ao voltar e clicar, o cronômetro continua de onde parou.
+   overlay PAUSED; ao voltar e clicar, o cronômetro continua de onde parou.
 
 ---
 
