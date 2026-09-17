@@ -175,20 +175,28 @@ export class Game {
 
   private handleCombatResult(r: ReturnType<CombatSystem['resolve']>): void {
     this.kills += r.playerKills.length;
+
+    for (const hit of r.enemyHits) {
+      this.vfx.spawnExplosion(hit.x, hit.y, this.rng);
+      if (hit.lethal) this.audio.play('explosion');
+      else this.audio.play('collision', { volume: 0.5 });
+    }
+
     for (const e of r.playerKills) {
       this.score += GameConfig.enemies[e.kind].points;
-      this.vfx.spawnExplosion(e.x, e.y, this.rng);
-      this.audio.play('explosion');
       if (GameConfig.enemies[e.kind].points > 0) this.audio.play('score');
     }
+
     for (const e of r.otherDeaths) {
       this.vfx.spawnExplosion(e.x, e.y, this.rng);
       this.audio.play('collision');
     }
+
     for (const pos of r.playerHitPositions) {
       this.vfx.spawnExplosion(pos.x, pos.y, this.rng);
       this.audio.play('collision', { volume: 0.7 });
     }
+
     const player = this.player;
     if (player && !this.healthWarned && player.hp > 0 && player.hp < GameConfig.ship.maxHp * 0.2) {
       this.healthWarned = true;

@@ -8,6 +8,7 @@ export interface CombatResult {
   playerKills: Enemy[]; // killed by player projectiles → score
   otherDeaths: Enemy[]; // contact explosions etc. → no score
   playerHitPositions: Array<{ x: number; y: number }>;
+  enemyHits: Array<{ x: number; y: number; lethal: boolean }>;
 }
 
 export class CombatSystem {
@@ -21,6 +22,7 @@ export class CombatSystem {
       playerKills: [],
       otherDeaths: [],
       playerHitPositions: [],
+      enemyHits: [],
     };
     const pr = GameConfig.ship.collisionRadius;
 
@@ -32,12 +34,16 @@ export class CombatSystem {
           if (!e.alive) continue;
           if (overlaps(p.x, p.y, e.x, e.y, e.radius)) {
             p.alive = false;
-            if (e.takeDamage(p.damage, 'player')) result.playerKills.push(e);
+            p.deathCause = 'ship';
+            const lethal = e.takeDamage(p.damage, 'player');
+            result.enemyHits.push({ x: p.x, y: p.y, lethal });
+            if (lethal) result.playerKills.push(e);
             break; // projectile is spent
           }
         }
       } else if (overlaps(p.x, p.y, player.sprite.x, player.sprite.y, pr)) {
         p.alive = false;
+        p.deathCause = 'ship';
         player.hp -= p.damage;
         result.playerDamage += p.damage;
         result.playerHitPositions.push({ x: p.x, y: p.y });

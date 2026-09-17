@@ -41,12 +41,18 @@ export class WeaponSystem {
       p.update(dt);
       if (p.alive) {
         const outside = p.x < 0 || p.y < 0 || p.x > width || p.y > height;
-        if (outside || collision.pointBlocked(p.x, p.y)) {
-          this.audio.play('splash', { volume: 0.6 });
+        if (outside) {
           p.alive = false;
+          p.deathCause ??= 'water';
+        } else if (collision.pointBlocked(p.x, p.y)) {
+          p.alive = false;
+          p.deathCause ??= 'island';
         }
       }
       if (!p.alive) {
+        if (p.deathCause === 'water') this.audio.play('splash', { volume: 0.6 });
+        else if (p.deathCause === 'island') this.audio.play('collision', { volume: 0.35 });
+        // 'ship' plays nothing here — CombatSystem already fired its sound
         this.layer.removeChild(p.view);
         p.view.destroy();
       }

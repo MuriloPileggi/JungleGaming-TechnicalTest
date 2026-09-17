@@ -1,6 +1,7 @@
 import { Graphics } from 'pixi.js';
 
 export type ProjectileOwner = 'player' | 'enemy';
+export type DeathCause = 'ship' | 'island' | 'water';
 
 export interface ProjectileOptions {
   x: number;
@@ -23,6 +24,7 @@ export class Projectile {
   lifetime: number;
   owner: ProjectileOwner;
   alive = true;
+  deathCause: DeathCause | null = null;
 
   constructor(opts: ProjectileOptions) {
     this.x = opts.x;
@@ -47,6 +49,9 @@ export class Projectile {
     this.y += this.vy * dt;
     this.lifetime -= dt;
     this.view.position.set(this.x, this.y);
-    if (this.lifetime <= 0) this.alive = false;
+    if (this.lifetime <= 0) {
+      this.alive = false;
+      this.deathCause ??= 'water';
+    }
   }
 }
