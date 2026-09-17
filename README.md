@@ -4,6 +4,7 @@ Jogo de batalha naval 2D em navegador: React (UI/telas) + PixiJS (arena/renderiz
 com backend simulado no próprio navegador via MSW (ranking e histórico).
 
 **URL pública (deploy):** https://jungle-gaming-technical-test.vercel.app/
+
 A versão publicada corresponde ao código deste repositório e executa os mocks de
 ranking e histórico. O jogo funciona ao abrir ou recarregar a URL (inclusive em
 rotas profundas como `/history`, via rewrite SPA no `vercel.json`).
@@ -15,24 +16,47 @@ rotas profundas como `/history`, via rewrite SPA no `vercel.json`).
 Pré-requisito: Node.js ≥ 20.
 
 ```bash
+
 npm ci            # instala dependências a partir do lockfile (package-lock.json)
 npx playwright install chromium   # baixa o navegador dos testes E2E
 npm run dev       # http://localhost:5173
 
+```
+
 A solução roda a partir de um checkout limpo, sem depender de serviços privados:
 o "backend" (ranking/histórico) é simulado no navegador com MSW + localStorage.
 
-Variáveis de ambiente
+---
+
+## Variáveis de ambiente
+
 Nenhuma. O projeto não utiliza variáveis de ambiente — nem em desenvolvimento,
 nem em produção. Toda a configuração de gameplay é feita pela tela de Options
 (persistida em localStorage) e os cenários de teste/rede são selecionados por
 parâmetros de URL (ver abaixo).
 
-Controles
+---
 
-Teclado (desktop)
+## Comandos 
+
+| Comando | Descrição |
+|---|---|
+| `npm run dev` | Servidor de desenvolvimento (Vite) |
+| `npm run build` | Build de produção em `dist/` |
+| `npm run preview` | Serve o build de produção localmente |
+| `npm run lint` | ESLint |
+| `npx tsc -b` | Verificação de tipos (TypeScript, sem emissão) |
+| `npm run test:e2e` | Suíte Playwright (60 testes: desktop + mobile, Chromium) |
+| `npm run test:e2e:report` | Abre o relatório HTML dos testes (`playwright-report/`) |
+
+---
+
+## Controles
+
+### Teclado (desktop)
 
 | Tecla | Ação |
+|---|---|
 | W | Acelera (vela) na direção atual |
 | A / D | Gira o navio (leme) |
 | Espaço | Disparo frontal (com cooldown) |
@@ -40,17 +64,20 @@ Teclado (desktop)
 | P | Pausa / retoma |
 | Enter, Espaço, Esc ou clique | Retoma quando pausado |
 
-Toque (mobile)
+### Toque (mobile)
 
 Botões em tela quando o dispositivo é touch (ou com ?touch=1):
 
 Canto inferior esquerdo: ◀ (girar), ▲ (vela), ▶ (girar)
+
 Canto inferior direito: L (broadside esquerda), FIRE (disparo frontal), R (broadside direita)
 
 Os botões de toque passam pelo mesmo caminho de input do teclado (InputSystem),
 portanto valem as mesmas regras de cooldown, colisão e dano.
 
-Configuração de gameplay
+---
+
+## Configuração de gameplay
 
 Tela Options (persistida em localStorage):
 
@@ -62,13 +89,17 @@ Valores inválidos ou adulterados no localStorage caem para os padrões configur
 (velocidades, dano, cooldowns, pontos por inimigo) vive centralizado em
 src/config/gameConfig.ts — ver ARCHITECTURE.md.
 
-Cenários de rede: seleção e reset
+---
+
+## Cenários de rede: seleção e reset
 
 O backend é simulado com MSW (service worker interceptando fetch na página).
 Para testes E2E, há instrumentação opcional, ativada apenas com ?test=1:
-Parâmetros de URL (modo de teste)
+
+### Parâmetros de URL (modo de teste)
 
 | Parâmetro | Efeito |
+|---|---|
 | `?test=1` | Ativa instrumentação (`window.__PIRATE_TEST__`, `window.__API_FAULTS__`) |
 | `seed=<n>` | RNG determinística (seed fixa ⇒ spawns e comportamento reproduzíveis) |
 | `duration=<s>` | Duração da partida em segundos |
@@ -76,23 +107,34 @@ Parâmetros de URL (modo de teste)
 | `failAssets=1` | Injeta falha de carregamento de assets (com `test=1`) |
 | `touch=1` | Força os controles de toque |
 
-Falhas de rede (console do navegador, com ?test=1)
+---
+
+## Falhas de rede (console do navegador, com ?test=1)
 
 __API_FAULTS__.failPost(1)     // POST /api/history responde 500 (n vezes)
+
 __API_FAULTS__.dropPost(1)     // POST falha como conexão caída (n vezes)
+
 __API_FAULTS__.delayPost(3000) // POST responde após 3s
+
 __API_FAULTS__.failGet(2)      // GETs de ranking/histórico respondem 500
+
 __API_FAULTS__.delayGet(1500)  // GETs atrasam 1,5s
+
 __API_FAULTS__.reset()         // RESET: remove todos os cenários ativos
 
-Reset completo dos dados locais
+---
+
+## Reset completo dos dados locais
 
 localStorage.clear(); location.reload();
 
 Remove opções, último resultado, fila de envios pendentes e o "banco" do MSW
 (ranking/histórico).
 
-Reproduzindo falhas (manual)
+---
+
+## Reproduzindo falhas (manual)
 
 1. Asset falha + retry: abra /game?test=1&seed=42&failAssets=1 → tela de erro
 ("Failed to load game assets") → clique Retry → o jogo carrega normalmente.
@@ -112,7 +154,9 @@ de aba → estado de carregamento. Profile novo (localStorage vazio) → estado 
 5. Pausa por perda de foco: durante uma partida, alterne para outra janela →
 overlay PAUSED; ao voltar e clicar, o cronômetro continua de onde parou.
 
-Testes E2E
+---
+
+## Testes E2E
 
 60 testes (30 cenários × projetos desktop e mobile, Chromium), cobrindo todos os
 fluxos exigidos: navegação/opções, assets com falha e retry, movimento/rotação/
