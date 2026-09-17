@@ -42,6 +42,9 @@ export function MainMenuScreen() {
         <button style={primaryButtonStyle} onClick={() => navigate('/game')} autoFocus>
           Set sail
         </button>
+        <Link to="/history" style={linkButtonStyle}>
+          History & ranking
+        </Link>
         <Link to="/options" style={linkButtonStyle}>
           Options
         </Link>

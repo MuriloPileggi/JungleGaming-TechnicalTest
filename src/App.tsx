@@ -2,6 +2,7 @@ import { Suspense, lazy } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { MainMenuScreen } from './screens/MainMenu';
 import { OptionsScreen } from './screens/Options';
+import { HistoryScreen } from './screens/History';
 import { screenStyle } from './screens/Styles';
 
 // PixiJS lives only behind this import: menu/options never download the engine.
@@ -22,6 +23,7 @@ export default function App() {
         <Route path="/" element={<MainMenuScreen />} />
         <Route path="/options" element={<OptionsScreen />} />
         <Route path="/game" element={<GameScreen />} />
+        <Route path="/history" element={<HistoryScreen />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Suspense>

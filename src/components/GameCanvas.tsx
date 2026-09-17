@@ -5,6 +5,7 @@ import { Hud } from './Hud';
 import { formatTime } from '../utils/formatTime';
 import { useHudStore } from '../hud/hudStore';
 import { loadOptions, saveResult } from '../persistence/storage';
+import { useSubmitMatchMutation } from '../api/hooks';
 import type { MatchResult } from '../game/types';
 
 type LoadState =
@@ -23,6 +24,12 @@ function GameSession({ onPlayAgain }: { onPlayAgain: () => void }) {
   const [state, setState] = useState<LoadState>({ phase: 'loading', progress: 0 });
   const [result, setResult] = useState<MatchResult | null>(null);
   const paused = useHudStore((s) => s.paused);
+  const submit = useSubmitMatchMutation();
+  const submitRef = useRef(submit);
+
+  useEffect(() => {
+    submitRef.current = submit;
+  });
 
   useEffect(() => {
     const host = hostRef.current;
@@ -47,6 +54,7 @@ function GameSession({ onPlayAgain }: { onPlayAgain: () => void }) {
       if (cancelled) return;
       saveResult(r);
       setResult(r);
+      submitRef.current.mutate(r); // → POST /api/history, then invalidates both queries
     };
 
     game.init().catch((err) => {
