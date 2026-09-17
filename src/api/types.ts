@@ -11,3 +11,10 @@ export interface RankingEntry {
   endReason: MatchResult['endReason'];
   endedAt: string;
 }
+
+export interface Page<T> {
+  items: T[];
+  total: number;
+  page: number;
+  pages: number;
+}

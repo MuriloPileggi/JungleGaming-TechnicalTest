@@ -1,5 +1,6 @@
 export class InputSystem {
   private keys = new Set<string>();
+  private virtual = new Set<string>();
 
   constructor(host: HTMLElement) {
     // host intentionally unused for now: global key listeners are fine while
@@ -9,6 +10,7 @@ export class InputSystem {
     window.addEventListener('keydown', this.onKeyDown);
     window.addEventListener('keyup', this.onKeyUp);
   }
+
   private onKeyDown = (e: KeyboardEvent) => {
     // Only capture game keys while the canvas host is focused/active,
     // so menus keep normal keyboard behavior (accessibility requirement)
@@ -20,12 +22,18 @@ export class InputSystem {
     this.keys.delete(e.code);
   };
 
+  setVirtual(code: string, down: boolean): void {
+    if (down) this.virtual.add(code);
+    else this.virtual.delete(code);
+  }
+
   isDown(code: string): boolean {
-    return this.keys.has(code);
+    return this.keys.has(code) || this.virtual.has(code);
   }
 
   clear(): void {
     this.keys.clear(); // call on pause/resume so held keys don't "stick"
+    this.virtual.clear();
   }
 
   destroy(): void {

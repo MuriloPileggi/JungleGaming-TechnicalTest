@@ -18,6 +18,7 @@ import type { EndReason, HudSnapshot, MatchResult } from './types';
 export interface GameOptions {
   matchDuration: number;
   spawnInterval: number;
+  seed?: number;
 }
 
 export class Game {
@@ -31,7 +32,7 @@ export class Game {
   private onProgress: (p: number) => void;
   private options: GameOptions;
   private destroyed = false;
-  private rng = new Rng(1234);
+  private rng: Rng;
   private collision!: CollisionSystem;
   private audio = new AudioManager();
   private vfx = new VfxSystem();
@@ -54,6 +55,9 @@ export class Game {
   // --- pause ---
   private paused = false;
   private resumeHandler: ((e: KeyboardEvent | PointerEvent) => void) | null = null;
+  private pauseHandler: ((e: KeyboardEvent) => void) | null = null;
+
+  private testMode: boolean;
 
   /** React-layer callbacks — the game never imports React/zustand. */
   onHudSnapshot: ((s: HudSnapshot) => void) | null = null;
@@ -66,6 +70,8 @@ export class Game {
     this.input = new InputSystem(host);
     this.timeRemaining = options.matchDuration;
     this.weapons = new WeaponSystem(this.audio);
+    this.rng = new Rng(options.seed ?? 1234);
+    this.testMode = options.seed !== undefined;
   }
 
   async init(): Promise<void> {
@@ -76,10 +82,12 @@ export class Game {
       resolution: window.devicePixelRatio || 1,
       autoDensity: true,
     });
+
     if (this.destroyed) {
       this.app.destroy(true, { children: true });
       return;
     }
+
     this.host.appendChild(this.app.canvas);
 
     await Assets.load(GAME_TEXTURES, (p) => this.onProgress(p));
@@ -116,19 +124,27 @@ export class Game {
     this.app.ticker.add(this.update, this);
     document.addEventListener('visibilitychange', this.onVisibility);
     window.addEventListener('blur', this.onBlur);
+    this.pauseHandler = (e: KeyboardEvent) => {
+      if (e.code === 'KeyP') this.setPaused(true);
+    };
+    window.addEventListener('keydown', this.pauseHandler);
+
+    this.audio.play('start');
+    this.audio.startLoop('ambience');
 
     this.onProgress(1);
     this.pushHud();
 
-    this.audio.play('start');
-    this.audio.startLoop('ambience');
+    if (this.testMode) this.exposeTestApi();
   }
 
   private update(ticker: Ticker): void {
     if (this.destroyed || !this.app.ticker.started) return;
     if (this.matchState === 'ended') return; // FULL freeze: sim, spawns, timer. Render continues.
 
-    const dt = Math.min(ticker.deltaMS, GameConfig.simulation.maxDeltaMs) / 1000;
+    const dt = this.testMode
+      ? 1 / 60
+      : Math.min(ticker.deltaMS, GameConfig.simulation.maxDeltaMs) / 1000;
 
     if (!this.paused) {
       this.durationPlayed += dt;
@@ -232,6 +248,7 @@ export class Game {
     this.removeResumeListener();
 
     const result: MatchResult = {
+      clientId: crypto.randomUUID(),
       score: this.score,
       enemiesKilled: this.kills,
       durationPlayed: Math.round(this.durationPlayed),
@@ -319,6 +336,46 @@ export class Game {
     return this.paused;
   }
 
+  private exposeTestApi(): void {
+    (window as unknown as Record<string, unknown>).__PIRATE_TEST__ = {
+      getState: () => ({
+        score: this.score,
+        kills: this.kills,
+        hp: this.player?.hp ?? 0,
+        timeRemaining: this.timeRemaining,
+        durationPlayed: this.durationPlayed,
+        matchState: this.matchState,
+        endReason: this.endReason,
+        paused: this.paused,
+        player: this.player
+          ? {
+              x: this.player.sprite.x,
+              y: this.player.sprite.y,
+              heading: this.player.heading,
+              speed: this.player.speed,
+            }
+          : null,
+        enemies: this.enemies.map((e) => ({
+          kind: e.kind,
+          x: e.x,
+          y: e.y,
+          hp: e.hp,
+          alive: e.alive,
+        })),
+        projectiles: this.weapons.projectiles.map((p) => ({ owner: p.owner, x: p.x, y: p.y })),
+      }),
+      /** Clock control (README-sanctioned): advance the match timer without simulating. */
+      fastForward: (seconds: number) => {
+        this.timeRemaining -= seconds;
+      },
+      isSolid: (x: number, y: number) => this.collision.pointBlocked(x, y),
+    };
+  }
+
+  setVirtualInput(code: string, down: boolean): void {
+    this.input.setVirtual(code, down);
+  }
+
   destroy(): void {
     this.destroyed = true;
     this.removeResumeListener();
@@ -329,15 +386,23 @@ export class Game {
     this.enemies = [];
     this.vfx.clear();
     this.audio.destroy();
+
     if (this.unlockHandler) {
       window.removeEventListener('keydown', this.unlockHandler);
       window.removeEventListener('pointerdown', this.unlockHandler);
       this.unlockHandler = null;
     }
 
+    if (this.pauseHandler) {
+      window.removeEventListener('keydown', this.pauseHandler);
+      this.pauseHandler = null;
+    }
+
     if (this.app.renderer) {
       this.app.ticker?.remove(this.update, this);
       this.app.destroy(true, { children: true, texture: false });
     }
+
+    delete (window as unknown as Record<string, unknown>).__PIRATE_TEST__;
   }
 }

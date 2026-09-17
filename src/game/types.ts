@@ -14,6 +14,7 @@ export interface HudSnapshot {
 
 /** Persisted + later POSTed to /history. */
 export interface MatchResult {
+  clientId: string;
   score: number;
   enemiesKilled: number;
   durationPlayed: number; // seconds

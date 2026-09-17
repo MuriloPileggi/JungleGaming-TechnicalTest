@@ -50,7 +50,9 @@ export function MainMenuScreen() {
         </Link>
       </nav>
 
-      <p style={hintStyle}>WASD / arrows to sail · Space frontal cannon · Q/E broadsides</p>
+      <p style={hintStyle}>
+        WASD / arrows to sail · Space frontal cannon · Q/E broadsides · P pause
+      </p>
     </div>
   );
 }

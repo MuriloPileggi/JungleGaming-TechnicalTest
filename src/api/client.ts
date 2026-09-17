@@ -1,18 +1,18 @@
-import type { HistoryEntry, RankingEntry } from './types';
+import type { HistoryEntry, Page, RankingEntry } from './types';
 import type { MatchResult } from '../game/types';
 
 const API = '/api';
 
-export async function fetchHistory(): Promise<HistoryEntry[]> {
-  const res = await fetch(`${API}/history`);
+export async function fetchHistory(page = 1): Promise<Page<HistoryEntry>> {
+  const res = await fetch(`${API}/history?page=${page}`);
   if (!res.ok) throw new Error(`GET /history failed: ${res.status}`);
-  return (await res.json()) as HistoryEntry[];
+  return (await res.json()) as Page<HistoryEntry>;
 }
 
-export async function fetchRanking(): Promise<RankingEntry[]> {
-  const res = await fetch(`${API}/ranking`);
+export async function fetchRanking(page = 1): Promise<Page<RankingEntry>> {
+  const res = await fetch(`${API}/ranking?page=${page}`);
   if (!res.ok) throw new Error(`GET /ranking failed: ${res.status}`);
-  return (await res.json()) as RankingEntry[];
+  return (await res.json()) as Page<RankingEntry>;
 }
 
 export async function submitMatch(result: MatchResult): Promise<HistoryEntry> {

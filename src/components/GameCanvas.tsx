@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Game } from '../game/Game';
+import { Game, type GameOptions } from '../game/Game';
 import { GameConfig } from '../config/gameConfig';
 import { Hud } from './Hud';
 import { formatTime } from '../utils/formatTime';
@@ -7,6 +7,8 @@ import { useHudStore } from '../hud/hudStore';
 import { loadOptions, saveResult } from '../persistence/storage';
 import { useSubmitMatchMutation } from '../api/hooks';
 import type { MatchResult } from '../game/types';
+import { TouchControls } from './TouchControls';
+import { enqueuePending } from '../api/pendingQueue';
 
 type LoadState =
   | { phase: 'loading'; progress: number }
@@ -26,6 +28,13 @@ function GameSession({ onPlayAgain }: { onPlayAgain: () => void }) {
   const paused = useHudStore((s) => s.paused);
   const submit = useSubmitMatchMutation();
   const submitRef = useRef(submit);
+  const gameRef = useRef<Game | null>(null);
+
+  const [touch] = useState(
+    () =>
+      window.matchMedia('(pointer: coarse)').matches ||
+      new URLSearchParams(window.location.search).get('touch') === '1',
+  );
 
   useEffect(() => {
     submitRef.current = submit;
@@ -35,7 +44,7 @@ function GameSession({ onPlayAgain }: { onPlayAgain: () => void }) {
     const host = hostRef.current;
     if (!host) return;
 
-    const options = loadOptions();
+    const options = readMatchOptions();
     useHudStore.getState().reset(options.matchDuration, GameConfig.ship.maxHp);
 
     let cancelled = false;
@@ -47,13 +56,17 @@ function GameSession({ onPlayAgain }: { onPlayAgain: () => void }) {
       options,
     );
 
+    gameRef.current = game;
+
     game.onHudSnapshot = (s) => {
       if (!cancelled) useHudStore.getState().apply(s);
     };
+
     game.onMatchEnd = (r) => {
       if (cancelled) return;
       saveResult(r);
       setResult(r);
+      enqueuePending(r);
       submitRef.current.mutate(r); // → POST /api/history, then invalidates both queries
     };
 
@@ -64,6 +77,7 @@ function GameSession({ onPlayAgain }: { onPlayAgain: () => void }) {
     return () => {
       cancelled = true;
       game.destroy();
+      gameRef.current = null;
     };
   }, []);
 
@@ -73,10 +87,14 @@ function GameSession({ onPlayAgain }: { onPlayAgain: () => void }) {
 
       {state.phase === 'ready' && <Hud />}
 
+      {touch && state.phase === 'ready' && !result && (
+        <TouchControls onPress={(code, down) => gameRef.current?.setVirtualInput(code, down)} />
+      )}
+
       {state.phase === 'ready' && paused && !result && (
         <div style={overlayStyle} role="status" aria-live="polite">
           <h2>PAUSED</h2>
-          <p>Press Enter, Space, Esc, or click to resume</p>
+          <p>Press P, Enter, Space, Esc, or click to resume</p>
         </div>
       )}
 
@@ -112,6 +130,21 @@ function GameSession({ onPlayAgain }: { onPlayAgain: () => void }) {
       )}
     </div>
   );
+}
+
+function readMatchOptions(): GameOptions {
+  const base = loadOptions();
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('test') !== '1') return base;
+  const num = (k: string, fallback: number) => {
+    const v = Number(params.get(k));
+    return Number.isFinite(v) && v > 0 ? v : fallback;
+  };
+  return {
+    matchDuration: num('duration', base.matchDuration),
+    spawnInterval: num('spawn', base.spawnInterval),
+    seed: num('seed', 1234), // presence of seed ⇒ test mode
+  };
 }
 
 const overlayStyle: React.CSSProperties = {
