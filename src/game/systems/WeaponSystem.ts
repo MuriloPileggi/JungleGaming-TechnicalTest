@@ -4,12 +4,18 @@ import { Projectile } from '../entities/Projectile';
 import type { Player } from '../entities/Player';
 import type { InputSystem } from './InputSystem';
 import type { CollisionSystem } from './CollisionSystem';
+import type { AudioManager } from './AudioManager';
 
 export class WeaponSystem {
   readonly layer = new Container();
   projectiles: Projectile[] = [];
   private frontalCd = 0;
   private lateralCd = 0;
+  private readonly audio: AudioManager;
+
+  constructor(audio: AudioManager) {
+    this.audio = audio;
+  }
 
   update(dt: number, input: InputSystem, player: Player, collision: CollisionSystem): void {
     this.frontalCd = Math.max(0, this.frontalCd - dt);
@@ -35,7 +41,10 @@ export class WeaponSystem {
       p.update(dt);
       if (p.alive) {
         const outside = p.x < 0 || p.y < 0 || p.x > width || p.y > height;
-        if (outside || collision.pointBlocked(p.x, p.y)) p.alive = false;
+        if (outside || collision.pointBlocked(p.x, p.y)) {
+          this.audio.play('splash', { volume: 0.6 });
+          p.alive = false;
+        }
       }
       if (!p.alive) {
         this.layer.removeChild(p.view);
@@ -61,6 +70,8 @@ export class WeaponSystem {
       owner: 'player',
       color: 0x22262b,
     });
+
+    this.audio.play('fireFrontal', { rate: 0.95 + Math.random() * 0.1 });
   }
 
   private fireLateral(player: Player, side: 1 | -1): void {
@@ -84,6 +95,8 @@ export class WeaponSystem {
         color: 0x22262b,
       });
     }
+
+    this.audio.play('fireLateral', { rate: 0.95 + Math.random() * 0.1 });
   }
 
   private spawn(opts: ConstructorParameters<typeof Projectile>[0]): void {

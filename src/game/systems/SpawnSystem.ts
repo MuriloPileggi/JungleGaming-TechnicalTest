@@ -17,7 +17,7 @@ export class SpawnSystem {
 
   constructor(rng: Rng, collision: CollisionSystem, interval: number) {
     this.interval = interval;
-    this.timer = interval; // first spawn one interval in, not at t=0
+    this.timer = GameConfig.match.firstSpawnDelay; // first spawn one interval in, not at t=0
     this.rng = rng;
     this.collision = collision;
   }

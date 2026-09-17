@@ -7,6 +7,7 @@ export interface CombatResult {
   playerDamage: number;
   playerKills: Enemy[]; // killed by player projectiles → score
   otherDeaths: Enemy[]; // contact explosions etc. → no score
+  playerHitPositions: Array<{ x: number; y: number }>;
 }
 
 export class CombatSystem {
@@ -15,7 +16,12 @@ export class CombatSystem {
     enemies: readonly Enemy[],
     player: Player,
   ): CombatResult {
-    const result: CombatResult = { playerDamage: 0, playerKills: [], otherDeaths: [] };
+    const result: CombatResult = {
+      playerDamage: 0,
+      playerKills: [],
+      otherDeaths: [],
+      playerHitPositions: [],
+    };
     const pr = GameConfig.ship.collisionRadius;
 
     for (const p of projectiles) {
@@ -34,13 +40,14 @@ export class CombatSystem {
         p.alive = false;
         player.hp -= p.damage;
         result.playerDamage += p.damage;
+        result.playerHitPositions.push({ x: p.x, y: p.y });
       }
     }
 
     // Chaser contact detonation
     for (const e of enemies) {
       if (!e.alive || e.kind !== 'chaser') continue;
-      if (overlaps(player.sprite.x, player.sprite.y, e.sprite.x, e.sprite.y, pr + e.radius)) {
+      if (overlaps(player.sprite.x, player.sprite.y, e.x, e.y, pr + e.radius)) {
         e.alive = false;
         e.killedByPlayer = false;
         player.hp -= GameConfig.enemies.chaser.contactDamage;

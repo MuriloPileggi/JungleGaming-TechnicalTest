@@ -1,5 +1,6 @@
 import { Container, Graphics, Sprite } from 'pixi.js';
 import { GameConfig } from '../../config/gameConfig';
+import type { Rng } from '../rng';
 import type { CollisionSystem } from '../systems/CollisionSystem';
 import type { Player } from './Player';
 
@@ -7,11 +8,11 @@ export type EnemyKind = 'chaser' | 'shooter';
 export type DamageSource = 'player' | 'other';
 export type FireCallback = (x: number, y: number, vx: number, vy: number) => void;
 
-/** Ship art faces "up" (−Y); heading 0 = east. */
 const ART_ROTATION_OFFSET = Math.PI / 2;
+const STUCK_THRESHOLD_S = 0.6; // negligible progress for this long → wedged
+const AVOID_DURATION_S = 0.9; // how long a detour lasts
 
 export class Enemy {
-  /** Position & zIndex live here. Pixi v8: Sprites are leaves — only Containers hold children. */
   readonly root = new Container();
   readonly sprite: Sprite;
   readonly kind: EnemyKind;
@@ -19,14 +20,29 @@ export class Enemy {
   hp: number;
   heading: number;
   alive = true;
-  /** true only when a player projectile landed the killing blow */
   killedByPlayer = false;
 
   private fireCd: number;
   private readonly hpBar = new Graphics();
+  private readonly rng: Rng;
 
-  constructor(kind: EnemyKind, textureKey: string, x: number, y: number, heading: number) {
+  // stuck detection / avoidance state
+  private prevX: number;
+  private prevY: number;
+  private stuckTime = 0;
+  private avoidTime = 0;
+  private avoidHeading = 0;
+
+  constructor(
+    kind: EnemyKind,
+    textureKey: string,
+    x: number,
+    y: number,
+    heading: number,
+    rng: Rng,
+  ) {
     this.kind = kind;
+    this.rng = rng;
     const cfg = GameConfig.enemies[kind];
     this.maxHp = cfg.hp;
     this.hp = cfg.hp;
@@ -36,6 +52,8 @@ export class Enemy {
     } else {
       this.fireCd = 0;
     }
+    this.prevX = x;
+    this.prevY = y;
 
     this.sprite = Sprite.from(textureKey);
     this.sprite.anchor.set(0.5);
@@ -45,7 +63,6 @@ export class Enemy {
     this.root.zIndex = 9;
     this.root.addChild(this.sprite);
 
-    // Sibling of the sprite → stays upright for free, no counter-rotation
     this.hpBar.position.set(0, -GameConfig.ship.size * 0.75);
     this.root.addChild(this.hpBar);
     this.redrawHpBar();
@@ -69,17 +86,27 @@ export class Enemy {
     const dist = Math.hypot(dx, dy);
     const desired = Math.atan2(dy, dx);
 
+    this.avoidTime = Math.max(0, this.avoidTime - dt);
+    const target = this.avoidTime > 0 ? this.avoidHeading : desired;
+
+    let moveSpeed = 0;
     if (this.kind === 'chaser') {
       const cfg = GameConfig.enemies.chaser;
-      this.turnToward(desired, cfg.turnRateDeg, dt);
-      this.advance(collision, cfg.speed, dt);
+      this.turnToward(target, cfg.turnRateDeg, dt);
+      moveSpeed = cfg.speed;
     } else {
       const cfg = GameConfig.enemies.shooter;
-      this.turnToward(desired, cfg.turnRateDeg, dt);
-      if (dist > cfg.approachRange) this.advance(collision, cfg.speed, dt);
+      this.turnToward(target, cfg.turnRateDeg, dt);
+      // keep moving during avoidance even inside approach range, or the detour stalls
+      if (dist > cfg.approachRange || this.avoidTime > 0) moveSpeed = cfg.speed;
 
       this.fireCd -= dt;
-      if (this.fireCd <= 0 && dist <= cfg.approachRange && this.angleTo(desired) < 0.3) {
+      if (
+        this.fireCd <= 0 &&
+        this.avoidTime <= 0 &&
+        dist <= cfg.approachRange &&
+        this.angleTo(desired) < 0.3
+      ) {
         const fx = Math.cos(this.heading);
         const fy = Math.sin(this.heading);
         const muzzle = GameConfig.ship.size / 2;
@@ -93,7 +120,9 @@ export class Enemy {
       }
     }
 
+    if (moveSpeed > 0) this.advance(collision, moveSpeed, dt);
     this.sprite.rotation = this.heading + ART_ROTATION_OFFSET;
+    this.updateStuck(dt, moveSpeed, desired, collision);
   }
 
   /** Returns true if this damage killed the enemy. */
@@ -107,6 +136,46 @@ export class Enemy {
       return true;
     }
     return false;
+  }
+
+  private updateStuck(
+    dt: number,
+    moveSpeed: number,
+    desired: number,
+    collision: CollisionSystem,
+  ): void {
+    const moved = Math.hypot(this.x - this.prevX, this.y - this.prevY);
+    this.prevX = this.x;
+    this.prevY = this.y;
+
+    const intended = moveSpeed * dt;
+    if (intended > 0 && moved < intended * 0.3) this.stuckTime += dt;
+    else this.stuckTime = Math.max(0, this.stuckTime - dt * 2);
+
+    if (this.stuckTime >= STUCK_THRESHOLD_S && this.avoidTime <= 0) {
+      this.beginAvoidance(desired, collision);
+    }
+  }
+
+  /** Probe one tile ahead along candidate headings; take the first open one. */
+  private beginAvoidance(desired: number, collision: CollisionSystem): void {
+    const probe = GameConfig.arena.tileSize;
+    const offsets = [Math.PI / 2, -Math.PI / 2, (3 * Math.PI) / 4, -(3 * Math.PI) / 4, Math.PI];
+    if (this.rng.next() < 0.5) offsets.reverse(); // vary which side enemies favor
+
+    let chosen = desired + Math.PI; // all probes blocked → back off
+    for (const offset of offsets) {
+      const h = desired + offset;
+      const px = this.x + Math.cos(h) * probe;
+      const py = this.y + Math.sin(h) * probe;
+      if (!collision.pointBlocked(px, py)) {
+        chosen = h;
+        break;
+      }
+    }
+    this.avoidHeading = chosen;
+    this.avoidTime = AVOID_DURATION_S;
+    this.stuckTime = 0;
   }
 
   private advance(collision: CollisionSystem, speed: number, dt: number): void {

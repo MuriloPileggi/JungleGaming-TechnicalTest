@@ -19,7 +19,7 @@ export const GameConfig = {
     maxSpeed: 240, // px/s
     acceleration: 300, // px/s²
     drag: 0.92, // per-frame multiplier at 60fps (converted to dt in code)
-    rotationSpeedDeg: 160, // deg/s
+    rotationSpeedDeg: 120, // deg/s
     collisionRadius: 24, // px
     // weapons
     frontal: {
@@ -39,7 +39,7 @@ export const GameConfig = {
   },
 
   enemies: {
-    chaser: { hp: 30, speed: 150, contactDamage: 25, points: 0, turnRateDeg: 140 },
+    chaser: { hp: 30, speed: 150, contactDamage: 25, points: 5, turnRateDeg: 140 },
     shooter: {
       hp: 50,
       speed: 90,
@@ -48,17 +48,18 @@ export const GameConfig = {
       projectileSpeed: 300,
       projectileDamage: 10,
       projectileLifetime: 2.2,
-      points: 1,
+      points: 10,
       turnRateDeg: 100,
     },
   },
 
   match: {
     durationOptions: [60, 120, 180] as const, // seconds (Options screen)
-    defaultDuration: 120,
+    defaultDuration: 60,
     spawnIntervalOptions: [5, 10, 15] as const, // seconds (Options screen)
-    defaultSpawnInterval: 10,
-    spawnMinDistanceFromPlayer: 600,
+    defaultSpawnInterval: 5,
+    spawnMinDistanceFromPlayer: 250,
+    firstSpawnDelay: 0,
   },
 
   simulation: {
