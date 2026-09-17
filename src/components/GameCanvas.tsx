@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { Game, type GameOptions } from '../game/Game';
 import { GameConfig } from '../config/gameConfig';
 import { Hud } from './Hud';
@@ -29,7 +29,6 @@ function GameSession({ onPlayAgain }: { onPlayAgain: () => void }) {
   const submit = useSubmitMatchMutation();
   const submitRef = useRef(submit);
   const gameRef = useRef<Game | null>(null);
-
   const [touch] = useState(
     () =>
       window.matchMedia('(pointer: coarse)').matches ||
@@ -82,7 +81,7 @@ function GameSession({ onPlayAgain }: { onPlayAgain: () => void }) {
   }, []);
 
   return (
-    <div style={{ position: 'relative', width: '100vw', height: '100vh' }}>
+    <div style={rootStyle}>
       <div ref={hostRef} style={{ width: '100%', height: '100%' }} />
 
       {state.phase === 'ready' && <Hud />}
@@ -111,9 +110,12 @@ function GameSession({ onPlayAgain }: { onPlayAgain: () => void }) {
       )}
 
       {state.phase === 'error' && (
-        <div role="alert" style={overlayStyle}>
-          <p>Failed to load assets.</p>
-          <button onClick={() => window.location.reload()}>Retry</button>
+        <div style={overlayStyle}>
+          <p role="alert">Failed to load game assets.</p>
+          <p style={{ fontSize: 12, opacity: 0.7 }}>{state.message}</p>
+          <button style={primaryButtonStyle} onClick={retryWithoutFault}>
+            Retry
+          </button>
         </div>
       )}
 
@@ -123,13 +125,20 @@ function GameSession({ onPlayAgain }: { onPlayAgain: () => void }) {
           <p>Score: {result.score}</p>
           <p>Enemies destroyed: {result.enemiesKilled}</p>
           <p>Time played: {formatTime(result.durationPlayed)}</p>
-          <button onClick={onPlayAgain} style={buttonStyle}>
+          <button onClick={onPlayAgain} style={primaryButtonStyle}>
             Play again
           </button>
         </div>
       )}
     </div>
   );
+}
+
+/** Reload without the injected fault — that's what "Retry" must mean. */
+function retryWithoutFault(): void {
+  const url = new URL(window.location.href);
+  url.searchParams.delete('failAssets');
+  window.location.href = url.toString();
 }
 
 function readMatchOptions(): GameOptions {
@@ -147,7 +156,9 @@ function readMatchOptions(): GameOptions {
   };
 }
 
-const overlayStyle: React.CSSProperties = {
+const rootStyle: CSSProperties = { position: 'relative', width: '100vw', height: '100vh' };
+
+const overlayStyle: CSSProperties = {
   position: 'absolute',
   inset: 0,
   display: 'flex',
@@ -159,7 +170,8 @@ const overlayStyle: React.CSSProperties = {
   color: '#e8dcc0',
   fontFamily: 'monospace',
 };
-const buttonStyle: React.CSSProperties = {
+
+const primaryButtonStyle: CSSProperties = {
   marginTop: 12,
   padding: '10px 24px',
   fontSize: 16,

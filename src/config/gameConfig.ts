@@ -59,7 +59,7 @@ export const GameConfig = {
     spawnIntervalOptions: [5, 10, 15] as const, // seconds (Options screen)
     defaultSpawnInterval: 5,
     firstSpawnDelay: 0,
-    spawnMinDistanceFromPlayer: 250,
+    spawnMinDistanceFromPlayer: 500,
   },
 
   simulation: {

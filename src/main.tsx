@@ -12,6 +12,11 @@ async function bootstrap(): Promise<void> {
   const { worker } = await import('./mocks/browser');
   await worker.start({ onUnhandledRequest: 'bypass' });
 
+  if (new URLSearchParams(window.location.search).get('test') === '1') {
+    const { installApiFaultHooks } = await import('./mocks/faults');
+    installApiFaultHooks();
+  }
+
   createRoot(document.getElementById('root')!).render(
     <StrictMode>
       <QueryClientProvider client={queryClient}>

@@ -20,12 +20,17 @@ function RouteFallback() {
 
 export default function App() {
   useEffect(() => {
-    void flushPending().then((n) => {
-      if (n > 0) {
+    let cancelled = false;
+    void flushPending()
+      .then((n) => {
+        if (cancelled || n === 0) return;
         void queryClient.invalidateQueries({ queryKey: ['history'] });
         void queryClient.invalidateQueries({ queryKey: ['ranking'] });
-      }
-    });
+      })
+      .catch((err) => console.warn('[api] boot flush failed:', err));
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   return (

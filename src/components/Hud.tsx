@@ -6,7 +6,7 @@ export function Hud() {
   if (matchState === 'ended') return null;
 
   return (
-    <div style={barStyle}>
+    <div data-testid="hud-bar" style={barStyle}>
       <div style={cellStyle}>
         <span style={labelStyle}>SCORE</span>
         <strong>{score}</strong>
@@ -46,8 +46,11 @@ const barStyle: React.CSSProperties = {
   fontFamily: 'monospace',
   fontSize: 16,
 };
+
 const cellStyle: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 8 };
+
 const labelStyle: React.CSSProperties = { opacity: 0.7, fontSize: 12 };
+
 const hpTrackStyle: React.CSSProperties = {
   width: 180,
   height: 10,
@@ -55,6 +58,7 @@ const hpTrackStyle: React.CSSProperties = {
   borderRadius: 4,
   overflow: 'hidden',
 };
+
 const hpFillStyle: React.CSSProperties = {
   height: '100%',
   background: '#37c24a',

@@ -23,29 +23,34 @@ function write(key: string, value: unknown): void {
   }
 }
 
-function pickAllowed(
-  value: number | undefined,
-  allowed: readonly number[],
-  fallback: number,
-): number {
-  return value !== undefined && allowed.includes(value) ? value : fallback;
-}
-
 /** Options are validated against the allowed sets — a hand-edited
  *  localStorage can't put the game in an invalid configuration. */
 export function loadOptions(): SavedOptions {
-  const saved = read<SavedOptions>(GameConfig.persistence.optionsKey);
+  let raw: Record<string, unknown> = {};
+  try {
+    const stored = localStorage.getItem(GameConfig.persistence.optionsKey);
+    const parsed: unknown = stored ? JSON.parse(stored) : null;
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      raw = parsed as Record<string, unknown>;
+    }
+  } catch {
+    raw = {}; // corrupt JSON → treat as absent
+  }
+
+  const validMatchDuration =
+    typeof raw.matchDuration === 'number' &&
+    GameConfig.match.durationOptions.some((option) => option === raw.matchDuration);
+  const validSpawnInterval =
+    typeof raw.spawnInterval === 'number' &&
+    GameConfig.match.spawnIntervalOptions.some((option) => option === raw.spawnInterval);
+
   return {
-    matchDuration: pickAllowed(
-      saved?.matchDuration,
-      GameConfig.match.durationOptions,
-      GameConfig.match.defaultDuration,
-    ),
-    spawnInterval: pickAllowed(
-      saved?.spawnInterval,
-      GameConfig.match.spawnIntervalOptions,
-      GameConfig.match.defaultSpawnInterval,
-    ),
+    matchDuration: validMatchDuration
+      ? (raw.matchDuration as number)
+      : GameConfig.match.defaultDuration,
+    spawnInterval: validSpawnInterval
+      ? (raw.spawnInterval as number)
+      : GameConfig.match.defaultSpawnInterval,
   };
 }
 

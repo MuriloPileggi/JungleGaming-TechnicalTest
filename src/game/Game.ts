@@ -75,6 +75,11 @@ export class Game {
   }
 
   async init(): Promise<void> {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('test') === '1' && params.get('failAssets') === '1') {
+      throw new Error('failed to load assets (injected fault)');
+    }
+
     await this.app.init({
       background: '#0a2a43',
       antialias: true,
@@ -289,6 +294,7 @@ export class Game {
   private onVisibility = () => {
     if (document.hidden) this.setPaused(true);
   };
+
   private onBlur = () => this.setPaused(true);
 
   setPaused(paused: boolean): void {
@@ -364,11 +370,28 @@ export class Game {
         })),
         projectiles: this.weapons.projectiles.map((p) => ({ owner: p.owner, x: p.x, y: p.y })),
       }),
-      /** Clock control (README-sanctioned): advance the match timer without simulating. */
+      /** Clock control: advance the match timer without simulating. */
       fastForward: (seconds: number) => {
         this.timeRemaining -= seconds;
       },
       isSolid: (x: number, y: number) => this.collision.pointBlocked(x, y),
+      spawnEnemy: (kind: 'chaser' | 'shooter', x: number, y: number) => this.spawnEnemy(kind, x, y),
+      damagePlayer: (amount: number) => {
+        const player = this.player;
+        if (player && this.matchState === 'running') {
+          player.hp = Math.max(0, Number(player.hp) - amount) as typeof player.hp;
+        }
+      },
+      healPlayer: (amount: number) => {
+        if (this.player && this.matchState === 'running') {
+          this.player.hp = Math.min(
+            GameConfig.ship.maxHp,
+            this.player.hp + amount,
+          ) as typeof this.player.hp;
+        }
+      },
+      setPaused: (p: boolean) => this.setPaused(p),
+      config: GameConfig,
     };
   }
 
