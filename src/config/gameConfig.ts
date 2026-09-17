@@ -39,7 +39,7 @@ export const GameConfig = {
   },
 
   enemies: {
-    chaser: { hp: 30, speed: 150, contactDamage: 25, points: 0 },
+    chaser: { hp: 30, speed: 150, contactDamage: 25, points: 0, turnRateDeg: 140 },
     shooter: {
       hp: 50,
       speed: 90,
@@ -49,6 +49,7 @@ export const GameConfig = {
       projectileDamage: 10,
       projectileLifetime: 2.2,
       points: 1,
+      turnRateDeg: 100,
     },
   },
 

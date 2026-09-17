@@ -6,7 +6,11 @@ import { Player } from './entities/Player';
 import { TileMap } from './arena/TileMap';
 import { ArenaRenderer } from './arena/ArenaRenderer';
 import { CollisionSystem } from './systems/CollisionSystem';
-import { GAME_TEXTURES, SHIP_TEXTURE } from './assets';
+import { GAME_TEXTURES, SHIP_TEXTURE, ENEMY_TEXTURES } from './assets';
+import { WeaponSystem } from './systems/WeaponSystem';
+import { Enemy, type EnemyKind } from './entities/Enemy';
+import { SpawnSystem } from './systems/SpawnSystem';
+import { CombatSystem, type CombatResult } from './systems/CombatSystem';
 
 export class Game {
   private app = new Application();
@@ -18,6 +22,12 @@ export class Game {
   private destroyed = false;
   private rng = new Rng(1234);
   private collision!: CollisionSystem; // assigned in init(), used only after
+  private weapons = new WeaponSystem();
+  private enemyLayer = new Container();
+  private enemies: Enemy[] = [];
+  private spawnSystem!: SpawnSystem;
+  private combat = new CombatSystem();
+  private score = 0;
 
   constructor(host: HTMLElement, onProgress: (p: number) => void) {
     this.host = host;
@@ -41,6 +51,11 @@ export class Game {
 
     // --- load assets with progress BEFORE combat starts ---
     await Assets.load(GAME_TEXTURES, (p) => this.onProgress(p));
+    if (import.meta.env.DEV) {
+      for (const id of GAME_TEXTURES) {
+        if (!Assets.cache.has(id)) console.warn(`[assets] requested but not cached: ${id}`);
+      }
+    }
     if (this.destroyed) return;
 
     // --- build the world ---
@@ -51,6 +66,14 @@ export class Game {
     this.collision = new CollisionSystem(tileMap);
     const arena = new ArenaRenderer(tileMap, this.rng);
     this.world.addChild(arena.layer);
+
+    this.world.addChild(this.weapons.layer);
+    this.world.addChild(this.enemyLayer);
+    this.spawnSystem = new SpawnSystem(
+      this.rng,
+      this.collision,
+      GameConfig.match.defaultSpawnInterval,
+    );
 
     this.player = new Player(SHIP_TEXTURE, GameConfig.arena);
     this.player.sprite.x = GameConfig.arena.width / 2;
@@ -74,6 +97,22 @@ export class Game {
 
     if (!this.paused) {
       this.player?.update(dt, this.input, this.collision);
+      if (this.player) {
+        this.weapons.update(dt, this.input, this.player, this.collision);
+
+        const request = this.spawnSystem.update(dt, this.player.sprite.x, this.player.sprite.y);
+        if (request) this.spawnEnemy(request.kind, request.x, request.y);
+
+        for (const e of this.enemies) {
+          e.update(dt, this.player, this.collision, (x, y, vx, vy) =>
+            this.weapons.spawnEnemyShot(x, y, vx, vy),
+          );
+        }
+
+        const result = this.combat.resolve(this.weapons.projectiles, this.enemies, this.player);
+        this.handleCombatResult(result);
+        this.removeDeadEnemies();
+      }
     }
     this.updateCamera();
   }
@@ -90,6 +129,37 @@ export class Game {
     camY = Math.max(0, Math.min(camY, arena.height - height));
 
     this.world.position.set(-camX, -camY);
+  }
+
+  private spawnEnemy(kind: EnemyKind, x: number, y: number): void {
+    const player = this.player;
+    if (!player) return;
+    const heading = Math.atan2(player.sprite.y - y, player.sprite.x - x);
+    const enemy = new Enemy(kind, ENEMY_TEXTURES[kind], x, y, heading);
+    this.enemies.push(enemy);
+    this.enemyLayer.addChild(enemy.root);
+  }
+
+  private handleCombatResult(r: CombatResult): void {
+    for (const e of r.playerKills) {
+      this.score += GameConfig.enemies[e.kind].points;
+      console.log(`[kill] ${e.kind} by player — score=${this.score}`);
+    }
+    for (const e of r.otherDeaths) {
+      console.log(`[death] ${e.kind} contact detonation — no score`);
+    }
+    if (r.playerDamage > 0) {
+      console.log(`[hit] player -${r.playerDamage} → hp=${Math.max(0, this.player?.hp ?? 0)}`);
+    }
+  }
+
+  private removeDeadEnemies(): void {
+    const dead = this.enemies.filter((e) => !e.alive);
+    for (const e of dead) {
+      this.enemyLayer.removeChild(e.root);
+      e.root.destroy({ children: true }); // destroys the hpBar child too
+    }
+    if (dead.length) this.enemies = this.enemies.filter((e) => e.alive);
   }
 
   // --- pause control ---
@@ -151,6 +221,8 @@ export class Game {
   destroy(): void {
     this.destroyed = true;
     this.removeResumeListener();
+    this.weapons.clear();
+    this.enemies = [];
 
     document.removeEventListener('visibilitychange', this.onVisibility);
     window.removeEventListener('blur', this.onBlur);
